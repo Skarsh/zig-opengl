@@ -32,8 +32,9 @@ extern "kernel32" fn GetStdHandle(
 ) callconv(windows.WINAPI) windows.HANDLE;
 
 extern "opengl32" fn wglCreateContext(hdc: windows.HDC) callconv(windows.WINAPI) ?windows.HGLRC;
-
 extern "opengl32" fn wglMakeCurrent(hdc: windows.HDC, hglrc: windows.HGLRC) callconv(windows.WINAPI) windows.BOOL;
+extern "opengl32" fn wglDeleteContext(hglrc: windows.HGLRC) callconv(windows.WINAPI) windows.BOOL;
+extern "opengl32" fn glGetString(name: u32) callconv(.C) [*:0]u8;
 
 const PIXELFORMATDESCRIPTOR = extern struct {
     nSize: windows.WORD,
@@ -76,8 +77,6 @@ extern "gdi32" fn SetPixelFormat(
     iPixelFormat: i32,
     ppfd: ?*PIXELFORMATDESCRIPTOR,
 ) callconv(windows.WINAPI) windows.BOOL;
-
-extern "opengl32" fn glGetString(name: u32) callconv(.C) [*]u8;
 
 pub export fn WindowProc(
     hWnd: windows.HWND,
@@ -128,17 +127,21 @@ pub export fn WindowProc(
             // TODO: handle return value
             _ = wglMakeCurrent(our_window_handle_to_device_context.?, our_opengl_rendering_context.?);
 
-            //user32.MessageBoxA(0, );
             const gl_version = glGetString(7938);
-            const version_slice = gl_version[0..20];
-            std.debug.print("OpenGL Version: {s}\n", .{version_slice});
+            std.debug.print("OpenGL Version: {s}\n", .{gl_version});
 
-            //_ = MessageBoxA(null, "version: " ++ gl_version, "OPENGL VERSION", 0);
+            // TODO: handle return value
+            _ = MessageBoxA(null, gl_version, "OPENGL VERSION", 0);
+
+            // TODO: handle return value
+            _ = wglDeleteContext(our_opengl_rendering_context.?);
+            user32.PostQuitMessage(0);
         },
-        else => {},
+        else => {
+            return user32.DefWindowProcW(hWnd, message, wParam, lParam);
+        },
     }
-
-    return user32.DefWindowProcW(hWnd, message, wParam, lParam);
+    return 0;
 }
 
 pub export fn wWinMain(
@@ -208,14 +211,6 @@ pub export fn wWinMain(
     while (user32.GetMessageW(&msg, null, 0, 0) > 0) {
         _ = user32.DispatchMessageW(&msg);
     }
-
-    //if (hwnd) |window| {
-    //    _ = user32.ShowWindow(window, nShowCmd);
-    //    _ = user32.MessageBoxW(window, u8to16le("hello"), u8to16le("title"), 0);
-    //} else {
-    //    const err_code = kernel32.GetLastError();
-    //    std.log.err("{}", .{err_code});
-    //}
 
     return 0;
 }
